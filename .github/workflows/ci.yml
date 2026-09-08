@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native app and helper
+        run: swift build
+      - name: Run parser tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Build universal application bundle
+        run: ./Scripts/build-app.sh
+      - name: Verify bundle signature and architectures
+        run: |
+          codesign --verify --deep --strict dist/LimitChecker.app
+          lipo -archs dist/LimitChecker.app/Contents/MacOS/LimitChecker
+          lipo -archs dist/LimitChecker.app/Contents/Resources/LimitProbe
