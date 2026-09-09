@@ -73,7 +73,7 @@ private struct LimitMenuView: View {
             }
         }
         .padding(16)
-        .frame(width: 330)
+        .frame(width: 430)
         .onAppear { store.start() }
     }
 
@@ -172,92 +172,162 @@ private struct UsageHistoryView: View {
     let now: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Verlauf")
+                Text("Verlauf des Restkontingents")
                     .font(.subheadline.weight(.semibold))
                 Text("12 Stunden")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                legend("Claude", color: .orange)
-                legend("Codex", color: .blue)
             }
 
-            if points.count >= 2 {
-                Canvas { context, size in
-                    let start = now.addingTimeInterval(-12 * 60 * 60)
-                    let width = max(size.width, 1)
-                    let height = max(size.height, 1)
-
-                    var guide = Path()
-                    guide.move(to: CGPoint(x: 0, y: height * 0.5))
-                    guide.addLine(to: CGPoint(x: width, y: height * 0.5))
-                    context.stroke(guide, with: .color(.secondary.opacity(0.22)), lineWidth: 1)
-
-                    drawSeries(
-                        points.compactMap { point in
-                            point.claudeSessionPercentLeft.map { (point.timestamp, $0) }
-                        },
-                        color: .orange,
-                        start: start,
-                        now: now,
-                        size: size,
-                        context: context
-                    )
-                    drawSeries(
-                        points.compactMap { point in
-                            point.codexFiveHourPercentLeft.map { (point.timestamp, $0) }
-                        },
-                        color: .blue,
-                        start: start,
-                        now: now,
-                        size: size,
-                        context: context
-                    )
-                }
-                .frame(height: 52)
-                .accessibilityLabel("Verlauf der letzten 12 Stunden")
-            } else {
+            if points.isEmpty {
                 Text("Verlauf baut sich mit den nächsten Aktualisierungen auf.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            } else {
+                HistoryChart(
+                    title: "Claude Code · Session",
+                    values: points.compactMap { point in
+                        point.claudeSessionPercentLeft.map { (point.timestamp, $0) }
+                    },
+                    color: .orange,
+                    now: now
+                )
+                HistoryChart(
+                    title: "Codex · 5h-Limit",
+                    values: points.compactMap { point in
+                        point.codexFiveHourPercentLeft.map { (point.timestamp, $0) }
+                    },
+                    color: .blue,
+                    now: now
+                )
             }
         }
     }
+}
 
-    private func legend(_ title: String, color: Color) -> some View {
-        HStack(spacing: 3) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-            Text(title)
+private struct HistoryChart: View {
+    let title: String
+    let values: [(Date, Int)]
+    let color: Color
+    let now: Date
+
+    private let chartHeight: CGFloat = 112
+    private var latestPercent: Int? { values.last?.1 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
+                Label(title, systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(color)
+                Spacer()
+                if let latestPercent {
+                    Text("\(latestPercent)% frei")
+                        .font(.caption.weight(.medium))
+                        .monospacedDigit()
+                }
+            }
+
+            if values.count >= 2 {
+                HStack(alignment: .top, spacing: 7) {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("100%")
+                        Spacer()
+                        Text("50%")
+                        Spacer()
+                        Text("0%")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(height: chartHeight)
+
+                    Canvas { context, size in
+                        drawChart(in: context, size: size)
+                    }
+                    .frame(height: chartHeight)
+                }
+
+                HStack(spacing: 0) {
+                    Text("vor 12 Std.")
+                    Spacer()
+                    Text("vor 6 Std.")
+                    Spacer()
+                    Text("jetzt")
+                }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .padding(.leading, 39)
+            } else {
+                Text("Noch ein Messwert, dann wird der Verlauf gezeigt.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(height: chartHeight, alignment: .center)
+            }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title), Verlauf des Restkontingents")
     }
 
-    private func drawSeries(
-        _ values: [(Date, Int)],
-        color: Color,
-        start: Date,
-        now: Date,
-        size: CGSize,
-        context: GraphicsContext
-    ) {
-        guard values.count >= 2 else { return }
+    private func drawChart(in context: GraphicsContext, size: CGSize) {
+        let start = now.addingTimeInterval(-12 * 60 * 60)
         let duration = max(now.timeIntervalSince(start), 1)
+        let width = max(size.width, 1)
+        let height = max(size.height, 1)
+        let point = { (value: (Date, Int)) in
+            CGPoint(
+                x: min(max(width * value.0.timeIntervalSince(start) / duration, 0), width),
+                y: height * (1 - Double(value.1) / 100)
+            )
+        }
+
+        for fraction in [0.0, 0.5, 1.0] {
+            var guide = Path()
+            let y = height * fraction
+            guide.move(to: CGPoint(x: 0, y: y))
+            guide.addLine(to: CGPoint(x: width, y: y))
+            context.stroke(guide, with: .color(.secondary.opacity(0.22)), lineWidth: 1)
+        }
+
         var path = Path()
         for (index, value) in values.enumerated() {
-            let x = size.width * value.0.timeIntervalSince(start) / duration
-            let y = size.height * (1 - Double(value.1) / 100)
+            let current = point(value)
             if index == 0 {
-                path.move(to: CGPoint(x: x, y: y))
+                path.move(to: current)
             } else {
-                path.addLine(to: CGPoint(x: x, y: y))
+                let previous = point(values[index - 1])
+                path.addLine(to: CGPoint(x: current.x, y: previous.y))
+                path.addLine(to: current)
             }
         }
         context.stroke(path, with: .color(color), lineWidth: 2)
+
+        for (index, value) in values.enumerated() where index > 0 {
+            let previous = values[index - 1]
+            guard value.1 == 100, previous.1 < 100 else { continue }
+            let resetPoint = point(value)
+            var marker = Path()
+            marker.move(to: CGPoint(x: resetPoint.x, y: 0))
+            marker.addLine(to: CGPoint(x: resetPoint.x, y: height))
+            context.stroke(
+                marker,
+                with: .color(color.opacity(0.7)),
+                style: StrokeStyle(lineWidth: 1, dash: [3, 3])
+            )
+            context.fill(
+                Path(ellipseIn: CGRect(x: resetPoint.x - 3, y: resetPoint.y - 3, width: 6, height: 6)),
+                with: .color(color)
+            )
+            context.draw(
+                Text("Reset")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(color),
+                at: CGPoint(x: min(resetPoint.x + 4, width - 36), y: 3),
+                anchor: .topLeading
+            )
+        }
     }
 }
 
