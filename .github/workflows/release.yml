@@ -52,7 +52,6 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           archive="dist/LimitChecker-$version-macos-universal.zip"
           ditto -c -k --keepParent dist/LimitChecker.app "$archive"
-          shasum -a 256 "$archive" > "$archive.sha256"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -65,7 +64,6 @@ jobs:
           fi
           gh release create "$GITHUB_REF_NAME" \
             "dist/LimitChecker-$version-macos-universal.zip" \
-            "dist/LimitChecker-$version-macos-universal.zip.sha256" \
             --title "LimitChecker $version" \
             --notes "$security_note" \
             --generate-notes
