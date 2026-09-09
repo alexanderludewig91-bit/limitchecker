@@ -37,8 +37,8 @@ The app starts a local health check when it launches. If a CLI is missing or
 not signed in, it shows which service needs attention without replacing the
 other service's last valid values.
 
-Only download notarized releases from this repository. A locally built,
-ad-hoc-signed app can trigger a macOS warning; see [release instructions](docs/RELEASE.md).
+Releases state whether they are notarized. An ad-hoc-signed release can trigger
+a one-time macOS warning on first launch; see [release instructions](docs/RELEASE.md).
 
 ## Privacy and security
 

@@ -7,8 +7,11 @@
 ./Scripts/create-release.sh 0.1.0
 ```
 
-This creates a universal ZIP and a SHA-256 checksum in `dist/`. An ad-hoc
-signature is appropriate for local testing only.
+This creates a universal ZIP and a SHA-256 checksum in `dist/`. It is also a
+valid GitHub download release. macOS can show a one-time Gatekeeper warning
+because the app is not associated with an identified Apple developer; users
+who trust the source can choose Finder's **Open** command or allow it in System
+Settings.
 
 ## Developer-ID signing and notarization
 
@@ -39,5 +42,5 @@ The release workflow supports these optional secrets:
 
 When all signing and notarization secrets are present, a version tag creates a
 notarized GitHub Release with a universal ZIP and checksum. Without them, the
-workflow creates an unsigned test artifact only; do not publish that artifact
-as a normal public download.
+same tag creates an ad-hoc-signed GitHub Release and clearly labels it as not
+notarized.
