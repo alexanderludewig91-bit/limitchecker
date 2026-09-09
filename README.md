@@ -30,6 +30,14 @@ LimitChecker. No API key is needed.
 
 ## Install
 
+> **Important: macOS will show a security warning for this download.**
+> LimitChecker is a free personal open-source project. I have chosen not to
+> maintain a paid Apple Developer Program membership, so Apple has not signed
+> or notarized the downloadable app. After the first blocked launch, open
+> **System Settings > Privacy & Security** and choose **Open Anyway** for
+> LimitChecker. You only need to do this once. Only proceed when you downloaded
+> the app from this repository and trust it.
+
 Download `LimitChecker-<version>-macos-universal.zip` from the GitHub Releases
 page, unzip it, then move `LimitChecker.app` to Applications and open it.
 
@@ -37,8 +45,7 @@ The app starts a local health check when it launches. If a CLI is missing or
 not signed in, it shows which service needs attention without replacing the
 other service's last valid values.
 
-Releases state whether they are notarized. An ad-hoc-signed release can trigger
-a one-time macOS warning on first launch; see [release instructions](docs/RELEASE.md).
+Releases state whether they are notarized; see [release instructions](docs/RELEASE.md).
 
 ## Privacy and security
 
