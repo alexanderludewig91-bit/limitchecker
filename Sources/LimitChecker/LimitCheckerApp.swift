@@ -171,6 +171,18 @@ private struct UsageHistoryView: View {
     let points: [UsageHistoryPoint]
     let now: Date
 
+    private var claudeValues: [(Date, Int)] {
+        points.compactMap { point in
+            point.claudeSessionPercentLeft.map { (point.timestamp, $0) }
+        }
+    }
+
+    private var codexValues: [(Date, Int)] {
+        points.compactMap { point in
+            point.codexFiveHourPercentLeft.map { (point.timestamp, $0) }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -182,27 +194,27 @@ private struct UsageHistoryView: View {
                 Spacer()
             }
 
-            if points.isEmpty {
+            if claudeValues.isEmpty && codexValues.isEmpty {
                 Text("Verlauf baut sich mit den nächsten Aktualisierungen auf.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                HistoryChart(
-                    title: "Claude Code · Session",
-                    values: points.compactMap { point in
-                        point.claudeSessionPercentLeft.map { (point.timestamp, $0) }
-                    },
-                    color: .orange,
-                    now: now
-                )
-                HistoryChart(
-                    title: "Codex · 5h-Limit",
-                    values: points.compactMap { point in
-                        point.codexFiveHourPercentLeft.map { (point.timestamp, $0) }
-                    },
-                    color: .blue,
-                    now: now
-                )
+                if !claudeValues.isEmpty {
+                    HistoryChart(
+                        title: "Claude Code · Session",
+                        values: claudeValues,
+                        color: .orange,
+                        now: now
+                    )
+                }
+                if !codexValues.isEmpty {
+                    HistoryChart(
+                        title: "Codex · 5h-Limit",
+                        values: codexValues,
+                        color: .blue,
+                        now: now
+                    )
+                }
             }
         }
     }
@@ -358,9 +370,14 @@ final class UsageStore: ObservableObject {
     }
 
     var menuBarSummary: String? {
-        guard let claudeSession = claude?.windows.first?.percentLeft,
-              let codexFiveHour = codex?.windows.first?.percentLeft else { return nil }
-        return "C \(claudeSession)%  O \(codexFiveHour)%"
+        var values: [String] = []
+        if let claudeSession = claude?.windows.first?.percentLeft {
+            values.append("C \(claudeSession)%")
+        }
+        if let codexFiveHour = codex?.windows.first?.percentLeft {
+            values.append("O \(codexFiveHour)%")
+        }
+        return values.isEmpty ? nil : values.joined(separator: "  ")
     }
 
     var lastUpdatedText: String {
@@ -430,7 +447,7 @@ final class UsageStore: ObservableObject {
                 codexError = codexResult?.error ?? "Codex hat keine Daten geliefert."
             }
 
-            let succeeded = claudeResult?.ok == true && codexResult?.ok == true
+            let succeeded = claudeResult?.ok == true || codexResult?.ok == true
             lastRefreshFailed = !succeeded
             if succeeded {
                 lastSuccessfulRefresh = completedAt
