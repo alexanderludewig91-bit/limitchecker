@@ -7,8 +7,9 @@
 ./Scripts/create-release.sh 0.1.0
 ```
 
-This creates a universal ZIP in `dist/`. It is also a valid GitHub download
-release. macOS can show a one-time Gatekeeper warning
+This creates a universal ZIP and a DMG installer in `dist/`. The DMG contains
+the app plus an `Applications` shortcut for drag-and-drop installation. Both
+are valid GitHub downloads. macOS can show a one-time Gatekeeper warning
 because the app is not associated with an identified Apple developer; users
 who trust the source can choose Finder's **Open** command or allow it in System
 Settings.
@@ -41,5 +42,6 @@ The release workflow supports these optional secrets:
 - `APPLE_APP_PASSWORD`
 
 When all signing and notarization secrets are present, a version tag creates a
-notarized GitHub Release with a universal ZIP. Without them, the same tag
-creates an ad-hoc-signed GitHub Release and clearly labels it as not notarized.
+notarized GitHub Release with a universal ZIP and DMG. Without them, the same
+tag creates an ad-hoc-signed GitHub Release and clearly labels it as not
+notarized.

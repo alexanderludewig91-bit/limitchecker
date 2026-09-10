@@ -42,8 +42,10 @@ LimitChecker. No API key is needed.
 > LimitChecker. You only need to do this once. Only proceed when you downloaded
 > the app from this repository and trust it.
 
-Download `LimitChecker-<version>-macos-universal.zip` from the GitHub Releases
-page, unzip it, then move `LimitChecker.app` to Applications and open it.
+Download `LimitChecker-<version>-macos-universal.dmg` from the GitHub Releases
+page, open it, then drag `LimitChecker.app` onto the `Applications` shortcut.
+The ZIP download remains available for people who prefer to unzip the app and
+move it manually.
 
 The app starts a local health check when it launches. If a CLI is missing or
 not signed in, it shows which service needs attention without replacing the

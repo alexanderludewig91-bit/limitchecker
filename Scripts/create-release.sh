@@ -12,6 +12,7 @@ archive_path="$project_root/dist/LimitChecker-$version-macos-universal.zip"
 
 LIMITCHECKER_VERSION="$version" "$project_root/Scripts/build-app.sh"
 rm -f "$archive_path" "$archive_path.sha256"
-ditto -c -k --keepParent "$project_root/dist/LimitChecker.app" "$archive_path"
+ditto --norsrc -c -k --keepParent "$project_root/dist/LimitChecker.app" "$archive_path"
+"$project_root/Scripts/create-dmg.sh" "$version"
 
 print "$archive_path"
