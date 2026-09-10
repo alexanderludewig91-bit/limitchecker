@@ -23,6 +23,7 @@ lipo -create \
   "$project_root/.build/x86_64-apple-macosx/release/LimitProbe" \
   -output "$app_path/Contents/Resources/LimitProbe"
 cp "$project_root/App/Info.plist" "$app_path/Contents/Info.plist"
+cp "$project_root/App/LimitChecker.icns" "$app_path/Contents/Resources/LimitChecker.icns"
 
 sign_options=(--force --sign "$signing_identity")
 if [[ "$signing_identity" != "-" ]]; then

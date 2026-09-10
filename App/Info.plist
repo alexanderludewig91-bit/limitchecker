@@ -8,9 +8,11 @@
     <string>LimitChecker</string>
     <key>CFBundleIdentifier</key>
     <string>local.limitchecker.app</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>LimitChecker.icns</string>
+	<key>CFBundleName</key>
     <string>LimitChecker</string>
     <key>CFBundleDisplayName</key>
     <string>LimitChecker</string>

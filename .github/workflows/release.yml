@@ -57,10 +57,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
+          logo="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/logo/limitchecker-logo.png"
           if [[ -n "$APPLE_CERTIFICATE_BASE64" && -n "$APPLE_ID" ]]; then
-            security_note="This release is Developer ID signed and notarized by Apple."
+            security_note="![LimitChecker logo]($logo)
+
+            This release is Developer ID signed and notarized by Apple."
           else
-            security_note=$'## Important: first launch on macOS\n\nLimitChecker is a free personal open-source project. I have chosen not to maintain a paid Apple Developer Program membership, so Apple has not signed or notarized this download.\n\nAfter the first blocked launch, open **System Settings > Privacy & Security** and choose **Open Anyway** for LimitChecker. You only need to do this once. Only proceed when you downloaded the app from this repository and trust it.\n\nThis release is ad-hoc signed and not notarized by Apple.'
+            security_note="![LimitChecker logo]($logo)
+
+            ## Important: first launch on macOS
+
+            LimitChecker is a free personal open-source project. I have chosen not to maintain a paid Apple Developer Program membership, so Apple has not signed or notarized this download.
+
+            After the first blocked launch, open **System Settings > Privacy & Security** and choose **Open Anyway** for LimitChecker. You only need to do this once. Only proceed when you downloaded the app from this repository and trust it.
+
+            This release is ad-hoc signed and not notarized by Apple."
           fi
           gh release create "$GITHUB_REF_NAME" \
             "dist/LimitChecker-$version-macos-universal.zip" \

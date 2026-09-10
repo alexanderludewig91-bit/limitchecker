@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo/limitchecker-logo.png" width="180" alt="LimitChecker logo">
+</p>
+
 # LimitChecker
 
 LimitChecker is a private macOS menu bar app for viewing Claude Code and Codex
