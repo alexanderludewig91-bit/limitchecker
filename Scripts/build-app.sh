@@ -5,6 +5,7 @@ project_root=${0:A:h:h}
 app_path="$project_root/dist/LimitChecker.app"
 architectures=(arm64 x86_64)
 signing_identity="${CODESIGN_IDENTITY:--}"
+app_version="${LIMITCHECKER_VERSION:-0.1.0}"
 
 cd "$project_root"
 for architecture in "${architectures[@]}"; do
@@ -24,6 +25,8 @@ lipo -create \
   -output "$app_path/Contents/Resources/LimitProbe"
 cp "$project_root/App/Info.plist" "$app_path/Contents/Info.plist"
 cp "$project_root/App/LimitChecker.icns" "$app_path/Contents/Resources/LimitChecker.icns"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $app_version" "$app_path/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $app_version" "$app_path/Contents/Info.plist"
 
 sign_options=(--force --sign "$signing_identity")
 if [[ "$signing_identity" != "-" ]]; then

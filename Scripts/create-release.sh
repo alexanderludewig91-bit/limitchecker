@@ -10,7 +10,7 @@ project_root=${0:A:h:h}
 version="$1"
 archive_path="$project_root/dist/LimitChecker-$version-macos-universal.zip"
 
-"$project_root/Scripts/build-app.sh"
+LIMITCHECKER_VERSION="$version" "$project_root/Scripts/build-app.sh"
 rm -f "$archive_path" "$archive_path.sha256"
 ditto -c -k --keepParent "$project_root/dist/LimitChecker.app" "$archive_path"
 

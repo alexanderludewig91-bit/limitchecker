@@ -38,7 +38,9 @@ jobs:
       - name: Build signed universal app
         env:
           CODESIGN_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: ./Scripts/build-app.sh
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          LIMITCHECKER_VERSION="$version" ./Scripts/build-app.sh
       - name: Notarize and staple
         if: ${{ env.APPLE_CERTIFICATE_BASE64 != '' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_PASSWORD != '' }}
         run: |
