@@ -37,6 +37,16 @@ arrowHead.lineJoinStyle = .round
 arrowHead.lineWidth = 9
 arrowHead.stroke()
 
+let labelBackground = NSColor(calibratedRed: 0.90, green: 0.93, blue: 0.98, alpha: 0.96)
+labelBackground.setFill()
+for x in [105.0, 485.0] {
+    NSBezierPath(
+        roundedRect: NSRect(x: x, y: 106, width: 170, height: 34),
+        xRadius: 8,
+        yRadius: 8
+    ).fill()
+}
+
 let paragraph = NSMutableParagraphStyle()
 paragraph.alignment = .center
 let instruction = NSAttributedString(
