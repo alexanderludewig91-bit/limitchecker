@@ -60,7 +60,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           logo="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/logo/limitchecker-logo.png"
-          security_note="![LimitChecker logo]($logo)"
+          security_note="<img src=\"$logo\" width=\"180\" alt=\"LimitChecker logo\">"
           if [[ -n "$APPLE_CERTIFICATE_BASE64" && -n "$APPLE_ID" ]]; then
             security_note+=$'\n\nThis release is Developer ID signed and notarized by Apple.'
           else
