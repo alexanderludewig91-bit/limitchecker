@@ -111,6 +111,30 @@ enum Terminal {
     }
 }
 
+enum UsageFailure {
+    static func authenticationMessage(service: String, output: String) -> String? {
+        let compact = Terminal.compact(output)
+        let indicators = [
+            "notloggedin", "loginrequired", "pleaselogin", "signintocontinue",
+            "authenticationrequired", "runclaudelogin", "runcodexlogin",
+        ]
+        guard indicators.contains(where: { compact.contains($0) }) else { return nil }
+        return "\(service) ist nicht angemeldet. Öffne \(service) im Terminal und melde dich an."
+    }
+
+    static func unrecognizedDataMessage(service: String, command: String, output: String) -> String {
+        authenticationMessage(service: service, output: output)
+            ?? "\(service) hat keine erkennbaren Nutzungsdaten geliefert. Prüfe \(command) im Terminal."
+    }
+
+    static func unresponsiveMessage(service: String, command: String, output: String, ended: Bool) -> String {
+        authenticationMessage(service: service, output: output)
+            ?? (ended
+                ? "\(service) wurde beendet, bevor Nutzungsdaten geladen werden konnten. Prüfe \(command) im Terminal."
+                : "\(service) hat nicht rechtzeitig reagiert. Prüfe \(command) im Terminal.")
+    }
+}
+
 struct DialogHandler {
     let prompt: String
     let response: [[UInt8]]
@@ -317,6 +341,7 @@ private final class ProbeResults: @unchecked Sendable {
 
 enum ScriptRunner {
     static func run(
+        service: String,
         command: [String],
         slashCommand: String,
         readyPrompt: String,
@@ -411,6 +436,16 @@ enum ScriptRunner {
             usleep(100_000)
         }
         for chunk in collector.take() { plainOutput.append(Terminal.clean(chunk)) }
+        if !sentCommand {
+            throw ProbeError.message(
+                UsageFailure.unresponsiveMessage(
+                    service: service,
+                    command: slashCommand,
+                    output: plainOutput,
+                    ended: !process.isRunning
+                )
+            )
+        }
         return plainOutput
     }
 
@@ -475,30 +510,42 @@ enum Parsers {
             #"(?s)Current session\s+.*?(\d{1,3})%\s*used\s+Resets\s+(.+?)(?=\nCurrent week|\nWhat's|\z)"#,
             in: clean
         ), let used = Int(match[1]) {
-            windows.append(LimitWindow(name: "Current session", percentUsed: used, percentLeft: max(0, 100 - used), resets: match[2]))
+            let percentUsed = boundedPercentage(used)
+            windows.append(LimitWindow(name: "Current session", percentUsed: percentUsed, percentLeft: 100 - percentUsed, resets: match[2]))
         }
         if let match = firstMatch(
             #"(?s)Current week(?: \(all models\))?\s+.*?(\d{1,3})%\s*used\s+Resets\s+(.+?)(?=\n\+|\nWhat's|\z)"#,
             in: clean
         ), let used = Int(match[1]) {
-            windows.append(LimitWindow(name: "Current week", percentUsed: used, percentLeft: max(0, 100 - used), resets: match[2]))
+            let percentUsed = boundedPercentage(used)
+            windows.append(LimitWindow(name: "Current week", percentUsed: percentUsed, percentLeft: 100 - percentUsed, resets: match[2]))
         }
         return windows.isEmpty
-            ? .failure(service: "claude", error: "Claude Code hat keine Nutzungsdaten geliefert.", raw: String(clean.suffix(2_000)))
+            ? .failure(
+                service: "claude",
+                error: UsageFailure.unrecognizedDataMessage(service: "Claude Code", command: "/usage", output: clean),
+                raw: String(clean.suffix(2_000))
+            )
             : ServiceUsage(service: "claude", ok: true, windows: windows, error: nil, rawExcerpt: nil)
     }
 
     static func codex(_ text: String) -> ServiceUsage {
         let clean = Terminal.collapsed(text)
         var windows: [LimitWindow] = []
-        if let match = firstMatch(#"5h limit:\s+\[[^\]]+\]\s+(\d{1,3})%\s+left\s+\(resets\s+([^)]+)\)"#, in: clean), let left = Int(match[1]) {
-            windows.append(LimitWindow(name: "5h limit", percentUsed: max(0, 100 - left), percentLeft: left, resets: match[2]))
+        if let match = firstMatch(#"(?i)5h limit:\s+(?:\[[^\]]+\]\s+)?(\d{1,3})%\s+left\s+\(resets\s+([^)]+)\)"#, in: clean), let left = Int(match[1]) {
+            let percentLeft = boundedPercentage(left)
+            windows.append(LimitWindow(name: "5h limit", percentUsed: 100 - percentLeft, percentLeft: percentLeft, resets: match[2]))
         }
-        if let match = firstMatch(#"Weekly limit:\s+\[[^\]]+\]\s+(\d{1,3})%\s+left\s+\(resets\s+([^)]+)\)"#, in: clean), let left = Int(match[1]) {
-            windows.append(LimitWindow(name: "Weekly limit", percentUsed: max(0, 100 - left), percentLeft: left, resets: match[2]))
+        if let match = firstMatch(#"(?i)Weekly limit:\s+(?:\[[^\]]+\]\s+)?(\d{1,3})%\s+left\s+\(resets\s+([^)]+)\)"#, in: clean), let left = Int(match[1]) {
+            let percentLeft = boundedPercentage(left)
+            windows.append(LimitWindow(name: "Weekly limit", percentUsed: 100 - percentLeft, percentLeft: percentLeft, resets: match[2]))
         }
         return windows.isEmpty
-            ? .failure(service: "codex", error: "Codex hat keine Nutzungsdaten geliefert.", raw: String(clean.suffix(2_000)))
+            ? .failure(
+                service: "codex",
+                error: UsageFailure.unrecognizedDataMessage(service: "Codex", command: "/status", output: clean),
+                raw: String(clean.suffix(2_000))
+            )
             : ServiceUsage(service: "codex", ok: true, windows: windows, error: nil, rawExcerpt: nil)
     }
 
@@ -512,6 +559,10 @@ enum Parsers {
             return String(text[range])
         }
     }
+
+    private static func boundedPercentage(_ value: Int) -> Int {
+        min(max(value, 0), 100)
+    }
 }
 
 func probeClaude() -> ServiceUsage {
@@ -520,6 +571,7 @@ func probeClaude() -> ServiceUsage {
     }
     do {
         let text = try ScriptRunner.run(
+            service: "Claude Code",
             command: [executable],
             slashCommand: "/usage",
             readyPrompt: "Claude Code",
@@ -527,6 +579,8 @@ func probeClaude() -> ServiceUsage {
             silenceTimeout: 8
         )
         return Parsers.claude(text)
+    } catch ProbeError.message(let message) {
+        return .failure(service: "claude", error: message)
     } catch {
         return .failure(service: "claude", error: "Claude Code konnte nicht gestartet werden: \(error)")
     }
@@ -538,6 +592,7 @@ func probeCodex() -> ServiceUsage {
     }
     do {
         let text = try ScriptRunner.run(
+            service: "Codex",
             command: [executable, "--no-alt-screen"],
             slashCommand: "/status",
             readyPrompt: "Ask Codex to do anything",
@@ -547,32 +602,52 @@ func probeCodex() -> ServiceUsage {
             ]
         )
         return Parsers.codex(text)
+    } catch ProbeError.message(let message) {
+        return .failure(service: "codex", error: message)
     } catch {
         return .failure(service: "codex", error: "Codex konnte nicht gestartet werden: \(error)")
     }
 }
 
-let arguments = CommandLine.arguments
-let requestedService = arguments.dropFirst().drop(while: { $0 != "--service" }).dropFirst().first ?? "all"
-let results: [ServiceUsage]
-switch requestedService {
-case "claude": results = [probeClaude()]
-case "codex": results = [probeCodex()]
-default:
-    let group = DispatchGroup()
-    let queue = DispatchQueue(label: "local.limitchecker.probe", attributes: .concurrent)
-    let collected = ProbeResults()
-    group.enter()
-    queue.async { collected.setClaude(probeClaude()); group.leave() }
-    group.enter()
-    queue.async { collected.setCodex(probeCodex()); group.leave() }
-    group.wait()
-    results = collected.values()
+func argumentValue(_ name: String) -> String? {
+    let arguments = CommandLine.arguments
+    guard let index = arguments.firstIndex(of: name), index + 1 < arguments.count else { return nil }
+    return arguments[index + 1]
 }
 
-let formatter = ISO8601DateFormatter()
-let payload = ProbePayload(generatedAt: formatter.string(from: .now), results: results)
-let encoder = JSONEncoder()
-encoder.outputFormatting = [.sortedKeys]
-let data = try! encoder.encode(payload)
-FileHandle.standardOutput.write(data)
+func liveResults(for requestedService: String) -> [ServiceUsage] {
+    switch requestedService {
+    case "claude": return [probeClaude()]
+    case "codex": return [probeCodex()]
+    default:
+        let group = DispatchGroup()
+        let queue = DispatchQueue(label: "local.limitchecker.probe", attributes: .concurrent)
+        let collected = ProbeResults()
+        group.enter()
+        queue.async { collected.setClaude(probeClaude()); group.leave() }
+        group.enter()
+        queue.async { collected.setCodex(probeCodex()); group.leave() }
+        group.wait()
+        return collected.values()
+    }
+}
+
+func writePayload(_ results: [ServiceUsage]) {
+    let formatter = ISO8601DateFormatter()
+    let payload = ProbePayload(generatedAt: formatter.string(from: .now), results: results)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    let data = try! encoder.encode(payload)
+    FileHandle.standardOutput.write(data)
+}
+
+if let parseService = argumentValue("--parse-output") {
+    let text = String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self)
+    switch parseService {
+    case "claude": writePayload([Parsers.claude(text)])
+    case "codex": writePayload([Parsers.codex(text)])
+    default: writePayload([.failure(service: parseService, error: "Unbekannter Testdienst.")])
+    }
+} else {
+    writePayload(liveResults(for: argumentValue("--service") ?? "all"))
+}
